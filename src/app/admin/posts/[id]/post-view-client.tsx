@@ -183,7 +183,7 @@ export default function PostViewClient({ post }: PostViewClientProps) {
               Xem Public
             </Button>
           </Link>
-          <Link href={`/posts/${post.id}/edit`}>
+          <Link href={`/admin/posts/${post.id}/edit`}>
             <Button type="primary" icon={<EditOutlined />}>
               Sửa bài viết
             </Button>

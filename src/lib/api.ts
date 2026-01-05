@@ -7,6 +7,35 @@ function getAuthToken(): string | null {
   return localStorage.getItem('managepost_access_token');
 }
 
+// Transform _id to id in response data (MongoDB returns _id, frontend uses id)
+function transformId<T>(data: T): T {
+  if (data === null || data === undefined) return data;
+
+  if (Array.isArray(data)) {
+    return data.map(item => transformId(item)) as T;
+  }
+
+  if (typeof data === 'object') {
+    const result: Record<string, unknown> = { ...data as Record<string, unknown> };
+
+    // Transform _id to id
+    if ('_id' in result && !('id' in result)) {
+      result.id = result._id;
+    }
+
+    // Recursively transform nested objects
+    for (const key of Object.keys(result)) {
+      if (result[key] && typeof result[key] === 'object') {
+        result[key] = transformId(result[key]);
+      }
+    }
+
+    return result as T;
+  }
+
+  return data;
+}
+
 // Generic fetch wrapper with error handling and auto-attach token
 async function fetchApi<T>(
   endpoint: string,
@@ -35,7 +64,8 @@ async function fetchApi<T>(
     throw new Error(error.error || 'Request failed');
   }
 
-  return res.json();
+  const data = await res.json();
+  return transformId(data);
 }
 
 // Types

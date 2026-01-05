@@ -120,7 +120,7 @@ export default function PostsClient({
       key: "title",
       render: (title, record) => (
         <div>
-          <Link href={`/posts/${record.id}`}>
+          <Link href={`/admin/posts/${record.id}`}>
             <Text strong style={{ color: "#1890ff" }}>{title}</Text>
           </Link>
           {record.excerpt && (
@@ -190,12 +190,12 @@ export default function PostsClient({
             </Link>
           </Tooltip>
           <Tooltip title="Xem chi tiết">
-            <Link href={`/posts/${record.id}`}>
+            <Link href={`/admin/posts/${record.id}`}>
               <Button type="text" size="small" icon={<EyeOutlined />} />
             </Link>
           </Tooltip>
           <Tooltip title="Sửa">
-            <Link href={`/posts/${record.id}/edit`}>
+            <Link href={`/admin/posts/${record.id}/edit`}>
               <Button type="text" size="small" icon={<EditOutlined />} />
             </Link>
           </Tooltip>
