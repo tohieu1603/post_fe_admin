@@ -3,7 +3,6 @@
 import { ReactNode } from "react";
 import { ConfigProvider } from "antd";
 import viVN from "antd/locale/vi_VN";
-import { AuthProvider } from "@/lib/auth";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -16,7 +15,7 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       }}
     >
-      <AuthProvider>{children}</AuthProvider>
+      {children}
     </ConfigProvider>
   );
 }

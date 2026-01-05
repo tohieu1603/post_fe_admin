@@ -49,30 +49,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       const token = getAccessToken();
-      if (token) {
-        try {
-          const userData = await authApi.getProfile();
-          setUser(userData);
-        } catch {
-          // Token invalid or expired, try refresh
-          const refreshToken = getRefreshToken();
-          if (refreshToken) {
-            try {
-              const response = await authApi.refreshToken(refreshToken);
-              saveTokens(response.accessToken, response.refreshToken);
-              setUser(response.user);
-            } catch {
-              clearTokens();
-            }
-          } else {
-            clearTokens();
-          }
-        }
+      if (!token) {
+        return;
       }
-      setLoading(false);
+
+      try {
+        const userData = await authApi.getProfile();
+        setUser(userData);
+      } catch {
+        clearTokens();
+      }
     };
 
-    checkAuth();
+    checkAuth().finally(() => setLoading(false));
   }, []);
 
   const login = async (data: LoginRequest) => {
@@ -112,7 +101,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    // Return default values when not within AuthProvider (e.g., auth pages)
+    return {
+      user: null,
+      loading: false,
+      login: async () => {},
+      register: async () => {},
+      logout: () => {},
+      isAuthenticated: false,
+    } as AuthContextType;
   }
   return context;
 }

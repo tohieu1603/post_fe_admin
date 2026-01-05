@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
-import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 import "@/styles/animations.css";
 
@@ -18,9 +17,7 @@ export default function RootLayout({
     <html lang="vi">
       <body>
         <AntdRegistry>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+          {children}
         </AntdRegistry>
       </body>
     </html>

@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import { Form, Input, Button, Card, Typography, message, Space } from "antd";
-import { UserOutlined, LockOutlined, MailOutlined, UserAddOutlined } from "@ant-design/icons";
+import {
+  UserOutlined,
+  LockOutlined,
+  MailOutlined,
+  UserAddOutlined,
+} from "@ant-design/icons";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth";
+import { authApi } from "@/lib/api";
 
 const { Title, Text } = Typography;
 
@@ -17,9 +21,7 @@ interface RegisterForm {
 }
 
 export default function RegisterPage() {
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const { register } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (values: RegisterForm) => {
     if (values.password !== values.confirmPassword) {
@@ -27,19 +29,22 @@ export default function RegisterPage() {
       return;
     }
 
-    setLoading(true);
+    setSubmitting(true);
     try {
-      await register({
+      const response = await authApi.register({
         name: values.name,
         email: values.email,
         password: values.password,
       });
+      localStorage.setItem("managepost_access_token", response.accessToken);
+      localStorage.setItem("managepost_refresh_token", response.refreshToken);
       message.success("Đăng ký thành công!");
-      router.push("/admin");
+      window.location.href = "/admin";
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "Đăng ký thất bại");
-    } finally {
-      setLoading(false);
+      message.error(
+        error instanceof Error ? error.message : "Đăng ký thất bại"
+      );
+      setSubmitting(false);
     }
   };
 
@@ -125,7 +130,9 @@ export default function RegisterPage() {
                   if (!value || getFieldValue("password") === value) {
                     return Promise.resolve();
                   }
-                  return Promise.reject(new Error("Mật khẩu xác nhận không khớp!"));
+                  return Promise.reject(
+                    new Error("Mật khẩu xác nhận không khớp!")
+                  );
                 },
               }),
             ]}
@@ -140,7 +147,7 @@ export default function RegisterPage() {
             <Button
               type="primary"
               htmlType="submit"
-              loading={loading}
+              loading={submitting}
               block
               icon={<UserAddOutlined />}
             >
@@ -151,7 +158,7 @@ export default function RegisterPage() {
           <div style={{ textAlign: "center" }}>
             <Space>
               <Text type="secondary">Đã có tài khoản?</Text>
-              <Link href="/admin/auth/login">Đăng nhập</Link>
+              <Link href="/auth/login">Đăng nhập</Link>
             </Space>
           </div>
         </Form>

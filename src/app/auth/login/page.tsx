@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Form, Input, Button, Card, Typography, message, Space } from "antd";
 import { UserOutlined, LockOutlined, LoginOutlined } from "@ant-design/icons";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth";
+import { authApi } from "@/lib/api";
 
 const { Title, Text } = Typography;
 
@@ -14,19 +14,19 @@ interface LoginForm {
 }
 
 export default function LoginPage() {
-  const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (values: LoginForm) => {
-    setLoading(true);
+    setSubmitting(true);
     try {
-      await login(values);
+      const response = await authApi.login(values);
+      localStorage.setItem("managepost_access_token", response.accessToken);
+      localStorage.setItem("managepost_refresh_token", response.refreshToken);
       message.success("Đăng nhập thành công!");
-      // Redirect to admin dashboard
       window.location.href = "/admin";
     } catch (error) {
       message.error(error instanceof Error ? error.message : "Đăng nhập thất bại");
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -93,7 +93,7 @@ export default function LoginPage() {
             <Button
               type="primary"
               htmlType="submit"
-              loading={loading}
+              loading={submitting}
               block
               icon={<LoginOutlined />}
             >
@@ -104,7 +104,7 @@ export default function LoginPage() {
           <div style={{ textAlign: "center" }}>
             <Space>
               <Text type="secondary">Chưa có tài khoản?</Text>
-              <Link href="/admin/auth/register">Đăng ký ngay</Link>
+              <Link href="/auth/register">Đăng ký ngay</Link>
             </Space>
           </div>
         </Form>
@@ -119,7 +119,7 @@ export default function LoginPage() {
           }}
         >
           <Text type="secondary" style={{ fontSize: 12 }}>
-            Default admin: admin@managepost.local / admin123
+            Default admin: admin@managepost.local / Admin@123
           </Text>
         </div>
       </Card>
