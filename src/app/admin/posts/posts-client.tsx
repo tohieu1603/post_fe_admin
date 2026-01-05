@@ -185,7 +185,7 @@ export default function PostsClient({
       render: (_, record) => (
         <Space size="small">
           <Tooltip title="Preview">
-            <Link href={`/p/${record.slug}`} target="_blank">
+            <Link href={`/admin/p/${record.slug}`} target="_blank">
               <Button type="text" size="small" icon={<GlobalOutlined />} />
             </Link>
           </Tooltip>

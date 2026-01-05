@@ -141,12 +141,9 @@ export interface ContentSection {
 }
 
 export interface ContentStructure {
-  summary?: string;
   toc: TocItem[];
-  sections: ContentSection[];
-  wordCount?: number;
-  estimatedReadTime?: number;
-  lastStructureUpdate?: string;
+  wordCount: number;
+  readingTime: number;
 }
 
 export interface Post {
@@ -184,8 +181,10 @@ export interface Post {
   readingTime: number | null;
   template: string | null;
   customFields: Record<string, unknown> | null;
-  // Content Structure
+  // Content Structure - Auto-generated
   contentStructure?: ContentStructure | null;
+  // FAQ - Separate field
+  faq?: FaqItem[] | null;
   // Timestamps
   createdAt: string;
   updatedAt: string;

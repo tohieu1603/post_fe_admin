@@ -10,11 +10,13 @@ interface TocItem {
   id: string;
   text: string;
   level: number;
+  anchor?: string;
   children?: TocItem[];
 }
 
 interface TableOfContentsProps {
-  content: string;
+  content?: string; // Markdown content (optional if toc provided)
+  toc?: TocItem[]; // Pre-parsed TOC from API
   title?: string;
   sticky?: boolean;
   maxLevel?: number; // Max heading level to include (2-6)
@@ -90,6 +92,7 @@ function renderAnchorItems(items: TocItem[]): { key: string; href: string; title
 
 export default function TableOfContents({
   content,
+  toc: tocFromApi,
   title = "Mục lục",
   sticky = true,
   maxLevel = 3,
@@ -98,14 +101,20 @@ export default function TableOfContents({
 }: TableOfContentsProps) {
   const [, setActiveId] = useState<string>("");
 
-  // Extract and build TOC tree
-  const tocTree = useMemo(() => {
-    const headings = extractHeadings(content, maxLevel);
-    return buildTree(headings);
-  }, [content, maxLevel]);
+  // Use API toc or extract from content
+  const flatHeadings = useMemo(() => {
+    if (tocFromApi && tocFromApi.length > 0) {
+      return tocFromApi.map(item => ({
+        id: item.anchor || item.id,
+        text: item.text,
+        level: item.level,
+      }));
+    }
+    return content ? extractHeadings(content, maxLevel) : [];
+  }, [tocFromApi, content, maxLevel]);
 
-  // Flat list for scroll tracking
-  const flatHeadings = useMemo(() => extractHeadings(content, maxLevel), [content, maxLevel]);
+  // Build TOC tree
+  const tocTree = useMemo(() => buildTree(flatHeadings), [flatHeadings]);
 
   // Track active heading on scroll
   useEffect(() => {

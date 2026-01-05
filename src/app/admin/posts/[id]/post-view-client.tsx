@@ -12,6 +12,7 @@ import {
   Row,
   Col,
   Collapse,
+  Anchor,
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -28,7 +29,6 @@ import {
   TwitterOutlined,
   StarFilled,
   CommentOutlined,
-  LinkOutlined,
   LayoutOutlined,
   GlobalOutlined,
 } from "@ant-design/icons";
@@ -178,7 +178,7 @@ export default function PostViewClient({ post }: PostViewClientProps) {
           </Title>
         </Space>
         <Space>
-          <Link href={`/p/${post.slug}`} target="_blank">
+          <Link href={`/admin/p/${post.slug}`} target="_blank">
             <Button icon={<GlobalOutlined />}>
               Xem Public
             </Button>
@@ -267,7 +267,41 @@ export default function PostViewClient({ post }: PostViewClientProps) {
           {/* Content */}
           <Card style={{ marginBottom: 16 }}>
             <div className="prose" style={{ maxWidth: "none" }}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  h2: ({ children }) => {
+                    const text = String(children);
+                    const anchor = text
+                      .toLowerCase()
+                      .replace(/[^\w\s\u00C0-\u024F\u1E00-\u1EFF]/g, "")
+                      .replace(/\s+/g, "-")
+                      .replace(/-+/g, "-")
+                      .replace(/^-|-$/g, "");
+                    return <h2 id={anchor}>{children}</h2>;
+                  },
+                  h3: ({ children }) => {
+                    const text = String(children);
+                    const anchor = text
+                      .toLowerCase()
+                      .replace(/[^\w\s\u00C0-\u024F\u1E00-\u1EFF]/g, "")
+                      .replace(/\s+/g, "-")
+                      .replace(/-+/g, "-")
+                      .replace(/^-|-$/g, "");
+                    return <h3 id={anchor}>{children}</h3>;
+                  },
+                  h4: ({ children }) => {
+                    const text = String(children);
+                    const anchor = text
+                      .toLowerCase()
+                      .replace(/[^\w\s\u00C0-\u024F\u1E00-\u1EFF]/g, "")
+                      .replace(/\s+/g, "-")
+                      .replace(/-+/g, "-")
+                      .replace(/^-|-$/g, "");
+                    return <h4 id={anchor}>{children}</h4>;
+                  },
+                }}
+              >
                 {post.content}
               </ReactMarkdown>
             </div>
@@ -278,6 +312,54 @@ export default function PostViewClient({ post }: PostViewClientProps) {
         <Col xs={24} lg={8}>
           {/* Analytics */}
           <PostAnalytics postId={post.id} />
+
+          {/* Table of Contents - Direct from API */}
+          {post.contentStructure?.toc && post.contentStructure.toc.length > 0 && (
+            <Card
+              title={`Mục lục (${post.contentStructure.toc.length})`}
+              size="small"
+              style={{ marginBottom: 16 }}
+              className="toc-card"
+            >
+              <style>{`
+                .toc-card .ant-anchor-link-title { font-weight: 500; color: #262626; }
+                .toc-card .ant-anchor-link .ant-anchor-link .ant-anchor-link-title { font-weight: 400; color: #595959; font-size: 13px; }
+              `}</style>
+              <Anchor
+                affix={false}
+                items={(() => {
+                  type AnchorItem = { key: string; href: string; title: string; children?: AnchorItem[] };
+                  const items: AnchorItem[] = [];
+                  let currentH2: AnchorItem | null = null;
+
+                  post.contentStructure!.toc.forEach(item => {
+                    const anchorItem: AnchorItem = {
+                      key: item.id,
+                      href: `#${item.anchor}`,
+                      title: item.text,
+                    };
+
+                    if (item.level === 2) {
+                      anchorItem.children = [];
+                      items.push(anchorItem);
+                      currentH2 = anchorItem;
+                    } else if (item.level >= 3 && currentH2) {
+                      currentH2.children = currentH2.children || [];
+                      currentH2.children.push(anchorItem);
+                    } else {
+                      items.push(anchorItem);
+                    }
+                  });
+
+                  // Clean empty children
+                  return items.map(item => ({
+                    ...item,
+                    children: item.children && item.children.length > 0 ? item.children : undefined,
+                  }));
+                })()}
+              />
+            </Card>
+          )}
 
           {/* Post Info */}
           <Card title="Thông tin" size="small" style={{ marginBottom: 16 }}>

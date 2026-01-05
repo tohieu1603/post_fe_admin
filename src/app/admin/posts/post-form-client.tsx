@@ -833,7 +833,7 @@ export default function PostFormClient({
                 }}
                 onApplyLink={(link: InternalLinkSuggestion) => {
                   // Insert link into content at cursor position or append
-                  const linkMarkdown = `[${link.anchorText}](/p/${link.postSlug})`;
+                  const linkMarkdown = `[${link.anchorText}](/admin/p/${link.postSlug})`;
                   setContent((prev) => prev + "\n\n" + linkMarkdown);
                 }}
               />
@@ -859,7 +859,7 @@ export default function PostFormClient({
                 }}
                 onApplyLink={(link: InternalLinkOptSuggestion) => {
                   // Insert internal link into content
-                  const linkMarkdown = `[${link.anchorText}](/p/${link.targetSlug})`;
+                  const linkMarkdown = `[${link.anchorText}](/admin/p/${link.targetSlug})`;
                   setContent((prev) => prev + "\n\n" + linkMarkdown);
                 }}
               />
