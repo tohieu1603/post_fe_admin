@@ -420,7 +420,7 @@ export default function DemoPostDetail({
               )}
 
               {/* FAQ Section */}
-              <FaqSection faqs={post.contentStructure?.sections?.find(s => s.type === 'faq')?.faqs} />
+              <FaqSection faqs={(post.contentStructure as any)?.sections?.find((s: any) => s.type === 'faq')?.faqs} />
 
               {/* Author Box */}
               {post.author && (

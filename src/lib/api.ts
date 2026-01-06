@@ -146,6 +146,40 @@ export interface ContentStructure {
   readingTime: number;
 }
 
+// Content Block types (Notion-style)
+export type ContentBlockType = 'heading' | 'paragraph' | 'image' | 'list' | 'code' | 'quote' | 'divider' | 'table' | 'faq' | 'media-text';
+
+export interface ContentBlock {
+  id: string;
+  type: ContentBlockType;
+  level?: 2 | 3 | 4 | 5 | 6;
+  text?: string;
+  anchor?: string;
+  url?: string;
+  alt?: string;
+  caption?: string;
+  style?: 'ordered' | 'unordered';
+  items?: string[];
+  language?: string;
+  code?: string;
+  headers?: string[];
+  rows?: string[][];
+  question?: string;
+  answer?: string;
+  // Media-Text block
+  imageUrl?: string;
+  imageAlt?: string;
+  imageCaption?: string;
+  imageLink?: string;
+  title?: string;
+  mediaPosition?: 'left' | 'right';
+  mediaWidth?: number;
+  verticalAlign?: 'top' | 'center' | 'bottom';
+  backgroundColor?: string;
+  borderRadius?: number;
+  padding?: number;
+}
+
 export interface Post {
   id: string;
   title: string;
@@ -183,6 +217,8 @@ export interface Post {
   customFields: Record<string, unknown> | null;
   // Content Structure - Auto-generated
   contentStructure?: ContentStructure | null;
+  // Content Blocks - Block-based JSON content (Notion-style)
+  contentBlocks?: ContentBlock[] | null;
   // FAQ - Separate field
   faq?: FaqItem[] | null;
   // Timestamps
@@ -1747,4 +1783,190 @@ export const analyticsApi = {
         topPosts: { _id: string; slug: string; totalViews: number }[];
       };
     }>(`/analytics/overview?days=${days}`),
+};
+
+// =====================
+// Author Types & API (E-E-A-T)
+// =====================
+
+export interface ExperienceItem {
+  id: string;
+  company: string;
+  position: string;
+  startDate: string;
+  endDate?: string;
+  isCurrent?: boolean;
+  description?: string;
+  location?: string;
+}
+
+export interface EducationItem {
+  id: string;
+  school: string;
+  degree: string;
+  field?: string;
+  startYear?: number;
+  endYear?: number;
+  description?: string;
+}
+
+export interface CertificationItem {
+  id: string;
+  name: string;
+  issuer: string;
+  issueDate?: string;
+  expiryDate?: string;
+  credentialId?: string;
+  credentialUrl?: string;
+}
+
+export interface AchievementItem {
+  id: string;
+  title: string;
+  issuer?: string;
+  date?: string;
+  description?: string;
+}
+
+export interface SkillItem {
+  id: string;
+  name: string;
+  level?: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  yearsOfExperience?: number;
+}
+
+export interface PublicationItem {
+  id: string;
+  title: string;
+  publisher?: string;
+  date?: string;
+  url?: string;
+  description?: string;
+}
+
+export interface Author {
+  id: string;
+  name: string;
+  slug: string;
+  email: string | null;
+  avatarUrl: string | null;
+  // E-E-A-T signals
+  bio: string | null;
+  shortBio: string | null;
+  jobTitle: string | null;
+  company: string | null;
+  location: string | null;
+  // Dynamic CV-like content
+  expertise: string[];
+  experience: ExperienceItem[];
+  education: EducationItem[];
+  certifications: CertificationItem[];
+  achievements: AchievementItem[];
+  skills: SkillItem[];
+  publications: PublicationItem[];
+  // Legacy
+  credentials: string | null;
+  yearsExperience: number | null;
+  // Social
+  website: string | null;
+  twitter: string | null;
+  linkedin: string | null;
+  facebook: string | null;
+  github: string | null;
+  youtube: string | null;
+  sameAs: string[];
+  // SEO
+  metaTitle: string | null;
+  metaDescription: string | null;
+  // Status
+  isActive: boolean;
+  isFeatured: boolean;
+  sortOrder: number;
+  // Relations
+  postsCount?: number;
+  // Timestamps
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuthorsResponse {
+  data: Author[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export const authorApi = {
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isActive?: boolean;
+    isFeatured?: boolean;
+    expertise?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', params.page.toString());
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.isActive !== undefined) searchParams.set('isActive', params.isActive.toString());
+    if (params?.isFeatured !== undefined) searchParams.set('isFeatured', params.isFeatured.toString());
+    if (params?.expertise) searchParams.set('expertise', params.expertise);
+    if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
+    if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder);
+    const query = searchParams.toString();
+    return fetchApi<AuthorsResponse>(`/authors${query ? `?${query}` : ''}`);
+  },
+
+  getDropdown: () => fetchApi<Author[]>('/authors/dropdown'),
+
+  getFeatured: (limit = 10) => fetchApi<Author[]>(`/authors/featured?limit=${limit}`),
+
+  getExpertiseTags: () => fetchApi<string[]>('/authors/expertise-tags'),
+
+  getById: (id: string) => fetchApi<Author>(`/authors/${id}`),
+
+  getBySlug: (slug: string) => fetchApi<Author>(`/authors/slug/${slug}`),
+
+  create: (data: Partial<Author>) =>
+    fetchApi<Author>('/authors', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: Partial<Author>) =>
+    fetchApi<Author>(`/authors/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    fetchApi<{ message: string }>(`/authors/${id}`, {
+      method: 'DELETE',
+    }),
+
+  toggleActive: (id: string) =>
+    fetchApi<Author>(`/authors/${id}/toggle-active`, {
+      method: 'PATCH',
+    }),
+
+  toggleFeatured: (id: string) =>
+    fetchApi<Author>(`/authors/${id}/toggle-featured`, {
+      method: 'PATCH',
+    }),
+
+  generateSlug: (name: string) =>
+    fetchApi<{ slug: string }>('/authors/generate-slug', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+
+  updateSortOrder: (items: { id: string; sortOrder: number }[]) =>
+    fetchApi<{ message: string }>('/authors/sort-order', {
+      method: 'PUT',
+      body: JSON.stringify({ items }),
+    }),
 };

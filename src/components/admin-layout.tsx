@@ -11,6 +11,7 @@ import {
   TagsOutlined,
   PictureOutlined,
   UserOutlined,
+  TeamOutlined,
   GlobalOutlined,
   SettingOutlined,
   ThunderboltOutlined,
@@ -96,6 +97,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       label: <Link href="/admin/users">Users</Link>,
     },
     {
+      key: "/admin/authors",
+      icon: <TeamOutlined />,
+      label: <Link href="/admin/authors">Tác giả</Link>,
+    },
+    {
       key: "/admin/seo",
       icon: <GlobalOutlined />,
       label: <Link href="/admin/seo">SEO</Link>,
@@ -119,6 +125,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (pathname.startsWith("/admin/tags")) return "/admin/tags";
     if (pathname.startsWith("/admin/media")) return "/admin/media";
     if (pathname.startsWith("/admin/users")) return "/admin/users";
+    if (pathname.startsWith("/admin/authors")) return "/admin/authors";
     if (pathname.startsWith("/admin/auto-seo")) return "/admin/auto-seo";
     if (pathname.startsWith("/admin/seo")) return "/admin/seo";
     if (pathname.startsWith("/admin/settings")) return "/admin/settings";

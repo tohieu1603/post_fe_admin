@@ -45,11 +45,10 @@ import {
 import { useDebouncedCallback } from "use-debounce";
 import type { Post, Category } from "@/lib/api";
 import { postApi } from "@/lib/api";
-import MarkdownEditor from "@/components/markdown-editor";
+import BlockEditor, { ContentBlock as BlockEditorContentBlock, generateAnchor } from "@/components/block-editor";
 import SeoAiPanel from "@/components/seo-ai-panel";
 import ContentOptimizer from "@/components/content-optimizer";
 import ContentStructureBuilder from "@/components/content-structure/content-structure-builder";
-import TableOfContents from "@/components/table-of-contents";
 import FaqSection, { FaqItem } from "@/components/faq-section";
 import type { SmartMetaResponse, InternalLinkSuggestion, ContentStructure, HeadingSuggestion, FaqSuggestion, InternalLinkOptSuggestion } from "@/lib/api";
 import { aiSeoApi } from "@/lib/api";
@@ -72,7 +71,9 @@ export default function PostFormClient({
   const isEdit = !!post;
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [content, setContent] = useState(post?.content || "");
+  const [contentBlocks, setContentBlocks] = useState<BlockEditorContentBlock[]>(
+    (post?.contentBlocks as BlockEditorContentBlock[]) || []
+  );
   const [previewImage, setPreviewImage] = useState(post?.coverImage || "");
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(isEdit);
   const [generatingSlug, setGeneratingSlug] = useState(false);
@@ -86,29 +87,38 @@ export default function PostFormClient({
 
   // FAQ state - extract from contentStructure if exists
   const [faqs, setFaqs] = useState<FaqItem[]>(() => {
-    const faqSection = post?.contentStructure?.sections?.find(s => s.type === 'faq');
+    const faqSection = (post?.contentStructure as any)?.sections?.find((s: any) => s.type === 'faq');
     return faqSection?.faqs || [];
   });
-
-  // Show TOC panel state
-  const [showTocPreview, setShowTocPreview] = useState(false);
 
   // AI Meta Suggestion state
   const [aiMetaSuggestion, setAiMetaSuggestion] = useState<SmartMetaResponse | null>(null);
   const [aiMetaLoading, setAiMetaLoading] = useState(false);
   const [showAiSuggestion, setShowAiSuggestion] = useState(false);
 
-  // Calculate reading time from content
+  // Calculate reading time from blocks
   useEffect(() => {
-    if (content) {
+    if (contentBlocks && contentBlocks.length > 0) {
       const wordsPerMinute = 200;
-      const wordCount = content.trim().split(/\s+/).length;
+      let wordCount = 0;
+      contentBlocks.forEach((block) => {
+        if (block.type === "paragraph" || block.type === "quote" || block.type === "heading") {
+          wordCount += (block.text || "").trim().split(/\s+/).filter(Boolean).length;
+        } else if (block.type === "list") {
+          wordCount += block.items.join(" ").split(/\s+/).filter(Boolean).length;
+        } else if (block.type === "faq") {
+          wordCount += ((block.question || "") + " " + (block.answer || "")).split(/\s+/).filter(Boolean).length;
+        } else if (block.type === "table") {
+          wordCount += block.headers.join(" ").split(/\s+/).filter(Boolean).length;
+          wordCount += block.rows.flat().join(" ").split(/\s+/).filter(Boolean).length;
+        }
+      });
       const time = Math.ceil(wordCount / wordsPerMinute);
       setReadingTime(time > 0 ? time : 1);
     } else {
       setReadingTime(null);
     }
-  }, [content]);
+  }, [contentBlocks]);
 
   // Auto-generate slug from title (debounced)
   const generateSlugFromTitle = useDebouncedCallback(async (title: string) => {
@@ -125,6 +135,23 @@ export default function PostFormClient({
     }
   }, 300);
 
+  // Extract text content from blocks for AI
+  const getTextFromBlocks = (blocks: BlockEditorContentBlock[]) => {
+    return blocks
+      .map((block) => {
+        if (block.type === "paragraph" || block.type === "quote" || block.type === "heading") {
+          return block.text || "";
+        } else if (block.type === "list") {
+          return block.items.join(" ");
+        } else if (block.type === "faq") {
+          return `${block.question || ""} ${block.answer || ""}`;
+        }
+        return "";
+      })
+      .filter(Boolean)
+      .join(" ");
+  };
+
   // Auto-generate AI meta suggestions from title (debounced)
   const generateAiMetaFromTitle = useDebouncedCallback(async (title: string) => {
     if (!title || title.length < 10) {
@@ -136,7 +163,8 @@ export default function PostFormClient({
     setAiMetaLoading(true);
     setShowAiSuggestion(true);
     try {
-      const response = await aiSeoApi.generateSmartMeta(title, content?.substring(0, 500));
+      const contentText = getTextFromBlocks(contentBlocks).substring(0, 500);
+      const response = await aiSeoApi.generateSmartMeta(title, contentText);
       if (response.success && response.data) {
         setAiMetaSuggestion(response.data);
       }
@@ -186,42 +214,93 @@ export default function PostFormClient({
     setTags(tags.filter((t) => t !== tag));
   };
 
+  // Convert blocks to markdown for backward compatibility
+  const blocksToMarkdown = (blocks: BlockEditorContentBlock[]): string => {
+    return blocks
+      .map((block) => {
+        switch (block.type) {
+          case "heading":
+            return `${"#".repeat(block.level || 2)} ${block.text || ""}`;
+          case "paragraph":
+            return block.text || "";
+          case "image":
+            return `![${block.alt || ""}](${block.url || ""})${block.caption ? ` ${block.caption}` : ""}`;
+          case "list":
+            return block.items
+              .map((item, idx) =>
+                block.style === "ordered" ? `${idx + 1}. ${item}` : `- ${item}`
+              )
+              .join("\n");
+          case "code":
+            return `\`\`\`${block.language || ""}\n${block.code || ""}\n\`\`\``;
+          case "quote":
+            return (block.text || "")
+              .split("\n")
+              .map((line) => `> ${line}`)
+              .join("\n");
+          case "divider":
+            return "---";
+          case "table":
+            const headerRow = `| ${block.headers.join(" | ")} |`;
+            const separator = `| ${block.headers.map(() => "---").join(" | ")} |`;
+            const dataRows = block.rows.map((row) => `| ${row.join(" | ")} |`).join("\n");
+            return `${headerRow}\n${separator}\n${dataRows}`;
+          case "faq":
+            return `**Q: ${block.question || ""}**\n\nA: ${block.answer || ""}`;
+          default:
+            return "";
+        }
+      })
+      .filter(Boolean)
+      .join("\n\n");
+  };
+
+  // Generate TOC from blocks
+  const generateTocFromBlocks = (blocks: BlockEditorContentBlock[]) => {
+    return blocks
+      .filter((block) => block.type === "heading")
+      .map((block) => ({
+        id: `h${(block as any).level}-${(block as any).anchor || generateAnchor((block as any).text || "")}`,
+        text: (block as any).text || "",
+        level: (block as any).level || 2,
+        anchor: (block as any).anchor || generateAnchor((block as any).text || ""),
+      }));
+  };
+
   const handleSubmit = async (values: Record<string, unknown>) => {
     setLoading(true);
     try {
-      // Build content structure with FAQ if available
-      let finalContentStructure = contentStructure;
-      if (faqs.length > 0) {
-        const validFaqs = faqs.filter(f => f.question && f.answer);
-        if (validFaqs.length > 0) {
-          const existingSections = finalContentStructure?.sections || [];
-          const faqSectionIndex = existingSections.findIndex(s => s.type === 'faq');
-          const faqSection = {
-            id: 'faq-section',
-            type: 'faq' as const,
-            order: faqSectionIndex >= 0 ? existingSections[faqSectionIndex].order : existingSections.length,
-            faqs: validFaqs,
-          };
+      // Generate content from blocks
+      const content = blocksToMarkdown(contentBlocks);
 
-          if (faqSectionIndex >= 0) {
-            existingSections[faqSectionIndex] = faqSection;
-          } else {
-            existingSections.push(faqSection);
-          }
+      // Generate TOC from heading blocks
+      const toc = generateTocFromBlocks(contentBlocks);
 
-          finalContentStructure = {
-            ...finalContentStructure,
-            toc: finalContentStructure?.toc || [],
-            sections: existingSections,
-          };
+      // Calculate word count and reading time
+      let wordCount = 0;
+      contentBlocks.forEach((block) => {
+        if (block.type === "paragraph" || block.type === "quote" || block.type === "heading") {
+          wordCount += (block.text || "").split(/\s+/).filter(Boolean).length;
+        } else if (block.type === "list") {
+          wordCount += block.items.join(" ").split(/\s+/).filter(Boolean).length;
+        } else if (block.type === "faq") {
+          wordCount += ((block.question || "") + " " + (block.answer || "")).split(/\s+/).filter(Boolean).length;
         }
-      }
+      });
+
+      // Build contentStructure
+      const finalContentStructure = {
+        toc,
+        wordCount,
+        readingTime: Math.max(1, Math.ceil(wordCount / 200)),
+      };
 
       const data: Partial<Post> = {
         title: values.title as string,
         subtitle: (values.subtitle as string) || undefined,
         slug: values.slug as string,
-        content,
+        content, // Markdown content for backward compatibility
+        contentBlocks, // JSON blocks
         categoryId: values.categoryId as string,
         status: values.status as Post["status"],
         tags: tags.length > 0 ? tags : undefined,
@@ -245,8 +324,8 @@ export default function PostFormClient({
         author: (values.author as string) || undefined,
         isFeatured: (values.isFeatured as boolean) || false,
         allowComments: values.allowComments !== false,
-        // Content Structure (with FAQ)
-        contentStructure: finalContentStructure || undefined,
+        // Content Structure
+        contentStructure: finalContentStructure,
       };
 
       if (isEdit && post) {
@@ -527,7 +606,7 @@ export default function PostFormClient({
                 />
               </Form.Item>
 
-              {/* Content Editor */}
+              {/* Content Editor - Block-based */}
               <Form.Item
                 label={
                   <Space>
@@ -537,55 +616,49 @@ export default function PostFormClient({
                         ~{readingTime} phút đọc
                       </Tag>
                     )}
+                    <Tag color="purple">{contentBlocks.length} blocks</Tag>
                   </Space>
                 }
               >
-                <MarkdownEditor
-                  value={content}
-                  onChange={setContent}
-                  height={500}
-                  placeholder="Nhập nội dung Markdown..."
+                <BlockEditor
+                  value={contentBlocks}
+                  onChange={setContentBlocks}
+                  placeholder="Bấm nút + để thêm block (tiêu đề, đoạn văn, hình ảnh...)"
                 />
               </Form.Item>
             </Card>
 
-            {/* TOC Preview - Auto-generated from content headings */}
-            <Card
-              title={
-                <Space>
-                  <UnorderedListOutlined />
-                  <span>Mục lục (tự động)</span>
-                </Space>
-              }
-              extra={
-                <Button
-                  type="link"
-                  size="small"
-                  onClick={() => setShowTocPreview(!showTocPreview)}
-                >
-                  {showTocPreview ? "Ẩn" : "Hiện"} mục lục
-                </Button>
-              }
-              style={{ marginBottom: 16 }}
-            >
-              <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
-                Mục lục được tự động tạo từ các heading (## H2, ### H3...) trong nội dung.
-                Click vào để chuyển đến phần đó khi xem bài viết.
-              </Text>
-              {showTocPreview && content ? (
-                <TableOfContents
-                  content={content}
-                  title="Preview Mục lục"
-                  sticky={false}
-                  maxLevel={4}
-                  emptyMessage="Chưa có heading (## H2, ### H3...) trong nội dung"
-                />
-              ) : (
-                <Text type="secondary" italic>
-                  Chưa có nội dung để tạo mục lục
-                </Text>
-              )}
-            </Card>
+            {/* TOC Preview - Auto-generated from heading blocks */}
+            {contentBlocks.filter((b) => b.type === "heading").length > 0 && (
+              <Card
+                title={
+                  <Space>
+                    <UnorderedListOutlined />
+                    <span>Mục lục (tự động từ Heading)</span>
+                  </Space>
+                }
+                size="small"
+                style={{ marginBottom: 16 }}
+              >
+                <ul style={{ margin: 0, paddingLeft: 20 }}>
+                  {contentBlocks
+                    .filter((b) => b.type === "heading")
+                    .map((block) => (
+                      <li
+                        key={block.id}
+                        style={{
+                          marginLeft: ((block as any).level - 2) * 16,
+                          fontWeight: (block as any).level === 2 ? 600 : 400,
+                          fontSize: (block as any).level === 2 ? 14 : 13,
+                          color: (block as any).level === 2 ? "#262626" : "#595959",
+                        }}
+                      >
+                        {(block as any).text || "(Chưa có tiêu đề)"}
+                      </li>
+                    ))}
+                </ul>
+              </Card>
+            )}
 
             {/* FAQ Section - Optional */}
             <Card
@@ -820,7 +893,7 @@ export default function PostFormClient({
             <div style={{ marginTop: 16 }}>
               <SeoAiPanel
                 title={form.getFieldValue("title") || ""}
-                content={content}
+                content={getTextFromBlocks(contentBlocks)}
                 metaDescription={form.getFieldValue("metaDescription")}
                 focusKeyword={form.getFieldValue("metaKeywords")?.split(",")[0]?.trim()}
                 postId={post?.id}
@@ -832,9 +905,13 @@ export default function PostFormClient({
                   });
                 }}
                 onApplyLink={(link: InternalLinkSuggestion) => {
-                  // Insert link into content at cursor position or append
-                  const linkMarkdown = `[${link.anchorText}](/admin/p/${link.postSlug})`;
-                  setContent((prev) => prev + "\n\n" + linkMarkdown);
+                  // Add a paragraph block with link
+                  const newBlock = {
+                    id: Math.random().toString(36).substring(2, 10),
+                    type: "paragraph" as const,
+                    text: `[${link.anchorText}](/admin/p/${link.postSlug})`,
+                  };
+                  setContentBlocks((prev) => [...prev, newBlock]);
                 }}
               />
             </div>
@@ -843,24 +920,38 @@ export default function PostFormClient({
             <div style={{ marginTop: 16 }}>
               <ContentOptimizer
                 title={form.getFieldValue("title") || ""}
-                content={content}
+                content={getTextFromBlocks(contentBlocks)}
                 focusKeyword={form.getFieldValue("metaKeywords")?.split(",")[0]?.trim()}
                 postId={post?.id}
                 onApplyHeading={(heading: HeadingSuggestion) => {
-                  // Insert heading into content
-                  const headingTag = heading.type === "h2" ? "## " : "### ";
-                  const headingMarkdown = `\n\n${headingTag}${heading.text}\n\n`;
-                  setContent((prev) => prev + headingMarkdown);
+                  // Add heading block
+                  const newBlock = {
+                    id: Math.random().toString(36).substring(2, 10),
+                    type: "heading" as const,
+                    level: (heading.type === "h2" ? 2 : 3) as 2 | 3,
+                    text: heading.text,
+                    anchor: generateAnchor(heading.text),
+                  };
+                  setContentBlocks((prev) => [...prev, newBlock]);
                 }}
                 onApplyFaq={(faq: FaqSuggestion) => {
-                  // Insert FAQ into content
-                  const faqMarkdown = `\n\n**Q: ${faq.question}**\n\n${faq.suggestedAnswer}\n`;
-                  setContent((prev) => prev + faqMarkdown);
+                  // Add FAQ block
+                  const newBlock = {
+                    id: Math.random().toString(36).substring(2, 10),
+                    type: "faq" as const,
+                    question: faq.question,
+                    answer: faq.suggestedAnswer,
+                  };
+                  setContentBlocks((prev) => [...prev, newBlock]);
                 }}
                 onApplyLink={(link: InternalLinkOptSuggestion) => {
-                  // Insert internal link into content
-                  const linkMarkdown = `[${link.anchorText}](/admin/p/${link.targetSlug})`;
-                  setContent((prev) => prev + "\n\n" + linkMarkdown);
+                  // Add a paragraph block with link
+                  const newBlock = {
+                    id: Math.random().toString(36).substring(2, 10),
+                    type: "paragraph" as const,
+                    text: `[${link.anchorText}](/admin/p/${link.targetSlug})`,
+                  };
+                  setContentBlocks((prev) => [...prev, newBlock]);
                 }}
               />
             </div>

@@ -33,10 +33,9 @@ import {
   GlobalOutlined,
 } from "@ant-design/icons";
 import { getTemplate } from "@/lib/templates";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { Post } from "@/lib/api";
 import PostAnalytics from "./post-analytics";
+import BlockRenderer from "@/components/block-renderer";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -264,46 +263,16 @@ export default function PostViewClient({ post }: PostViewClientProps) {
             </Card>
           )}
 
-          {/* Content */}
+          {/* Content - Block-based rendering */}
           <Card style={{ marginBottom: 16 }}>
             <div className="prose" style={{ maxWidth: "none" }}>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  h2: ({ children }) => {
-                    const text = String(children);
-                    const anchor = text
-                      .toLowerCase()
-                      .replace(/[^\w\s\u00C0-\u024F\u1E00-\u1EFF]/g, "")
-                      .replace(/\s+/g, "-")
-                      .replace(/-+/g, "-")
-                      .replace(/^-|-$/g, "");
-                    return <h2 id={anchor}>{children}</h2>;
-                  },
-                  h3: ({ children }) => {
-                    const text = String(children);
-                    const anchor = text
-                      .toLowerCase()
-                      .replace(/[^\w\s\u00C0-\u024F\u1E00-\u1EFF]/g, "")
-                      .replace(/\s+/g, "-")
-                      .replace(/-+/g, "-")
-                      .replace(/^-|-$/g, "");
-                    return <h3 id={anchor}>{children}</h3>;
-                  },
-                  h4: ({ children }) => {
-                    const text = String(children);
-                    const anchor = text
-                      .toLowerCase()
-                      .replace(/[^\w\s\u00C0-\u024F\u1E00-\u1EFF]/g, "")
-                      .replace(/\s+/g, "-")
-                      .replace(/-+/g, "-")
-                      .replace(/^-|-$/g, "");
-                    return <h4 id={anchor}>{children}</h4>;
-                  },
-                }}
-              >
-                {post.content}
-              </ReactMarkdown>
+              {post.contentBlocks && post.contentBlocks.length > 0 ? (
+                <BlockRenderer blocks={post.contentBlocks} />
+              ) : (
+                <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit" }}>
+                  {post.content}
+                </pre>
+              )}
             </div>
           </Card>
         </Col>

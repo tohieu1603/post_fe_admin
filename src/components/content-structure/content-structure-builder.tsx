@@ -56,11 +56,18 @@ import type {
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
+// Extended ContentStructure for legacy section-based builder
+interface LegacyContentStructure extends ContentStructure {
+  sections?: ContentSection[];
+  estimatedReadTime?: number;
+  lastStructureUpdate?: string;
+}
+
 interface ContentStructureBuilderProps {
   postId: string;
-  structure: ContentStructure | null;
-  onStructureChange: (structure: ContentStructure) => void;
-  onSave?: (structure: ContentStructure, updateContent?: boolean) => Promise<void>;
+  structure: LegacyContentStructure | null;
+  onStructureChange: (structure: LegacyContentStructure) => void;
+  onSave?: (structure: LegacyContentStructure, updateContent?: boolean) => Promise<void>;
   loading?: boolean;
 }
 
@@ -266,7 +273,7 @@ export default function ContentStructureBuilder({
         break;
     }
 
-    const sections = structure.sections.map(s =>
+    const sections = (structure.sections || []).map(s =>
       s.id === editingSection.id ? updatedSection : s
     );
 
@@ -289,7 +296,7 @@ export default function ContentStructureBuilder({
   const handleDeleteSection = (sectionId: string) => {
     if (!structure) return;
 
-    const sections = structure.sections.filter(s => s.id !== sectionId);
+    const sections = (structure.sections || []).filter(s => s.id !== sectionId);
     sections.forEach((s, i) => { s.order = i; });
 
     const toc = buildToc(sections);
@@ -758,8 +765,8 @@ export default function ContentStructureBuilder({
 }
 
 // Structure Preview Component
-function StructurePreview({ structure }: { structure: ContentStructure | null }) {
-  if (!structure || structure.sections.length === 0) {
+function StructurePreview({ structure }: { structure: LegacyContentStructure | null }) {
+  if (!structure || !structure.sections || structure.sections.length === 0) {
     return <Empty description="Chưa có nội dung" />;
   }
 
