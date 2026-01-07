@@ -18,6 +18,7 @@ import {
   LogoutOutlined,
   DownOutlined,
   LayoutOutlined,
+  FireOutlined,
 } from "@ant-design/icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -102,6 +103,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       label: <Link href="/admin/authors">Tác giả</Link>,
     },
     {
+      key: "/admin/banners",
+      icon: <FireOutlined />,
+      label: <Link href="/admin/banners">Banners</Link>,
+    },
+    {
       key: "/admin/seo",
       icon: <GlobalOutlined />,
       label: <Link href="/admin/seo">SEO</Link>,
@@ -126,6 +132,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (pathname.startsWith("/admin/media")) return "/admin/media";
     if (pathname.startsWith("/admin/users")) return "/admin/users";
     if (pathname.startsWith("/admin/authors")) return "/admin/authors";
+    if (pathname.startsWith("/admin/banners")) return "/admin/banners";
     if (pathname.startsWith("/admin/auto-seo")) return "/admin/auto-seo";
     if (pathname.startsWith("/admin/seo")) return "/admin/seo";
     if (pathname.startsWith("/admin/settings")) return "/admin/settings";

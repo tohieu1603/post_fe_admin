@@ -41,10 +41,13 @@ import {
   LoadingOutlined,
   QuestionCircleOutlined,
   UnorderedListOutlined,
+  FireOutlined,
+  EyeOutlined,
+  HeartOutlined,
 } from "@ant-design/icons";
 import { useDebouncedCallback } from "use-debounce";
-import type { Post, Category } from "@/lib/api";
-import { postApi } from "@/lib/api";
+import type { Post, Category, Author } from "@/lib/api";
+import { postApi, authorApi } from "@/lib/api";
 import BlockEditor, { ContentBlock as BlockEditorContentBlock, generateAnchor } from "@/components/block-editor";
 import SeoAiPanel from "@/components/seo-ai-panel";
 import ContentOptimizer from "@/components/content-optimizer";
@@ -85,8 +88,32 @@ export default function PostFormClient({
     post?.contentStructure || null
   );
 
-  // FAQ state - extract from contentStructure if exists
+  // Authors for dropdown
+  const [authors, setAuthors] = useState<Author[]>([]);
+  const [authorsLoading, setAuthorsLoading] = useState(false);
+
+  // Load authors on mount
+  useEffect(() => {
+    const loadAuthors = async () => {
+      setAuthorsLoading(true);
+      try {
+        const data = await authorApi.getDropdown();
+        setAuthors(data);
+      } catch {
+        // Ignore error
+      } finally {
+        setAuthorsLoading(false);
+      }
+    };
+    loadAuthors();
+  }, []);
+
+  // FAQ state - load from post.faq first, fallback to contentStructure
   const [faqs, setFaqs] = useState<FaqItem[]>(() => {
+    // Priority: post.faq > contentStructure.sections.faqs
+    if (post?.faq && post.faq.length > 0) {
+      return post.faq;
+    }
     const faqSection = (post?.contentStructure as any)?.sections?.find((s: any) => s.type === 'faq');
     return faqSection?.faqs || [];
   });
@@ -321,11 +348,13 @@ export default function PostFormClient({
         twitterDescription: (values.twitterDescription as string) || undefined,
         twitterImage: (values.twitterImage as string) || undefined,
         // Advanced
-        author: (values.author as string) || undefined,
+        authorId: (values.authorId as string) || undefined,
         isFeatured: (values.isFeatured as boolean) || false,
         allowComments: values.allowComments !== false,
         // Content Structure
         contentStructure: finalContentStructure,
+        // FAQ - separate field for easy access
+        faq: faqs.length > 0 ? faqs.filter(f => f.question && f.answer) : undefined,
       };
 
       if (isEdit && post) {
@@ -477,7 +506,7 @@ export default function PostFormClient({
           twitterDescription: post?.twitterDescription || "",
           twitterImage: post?.twitterImage || "",
           // Advanced
-          author: post?.author || "",
+          authorId: post?.authorId || undefined,
           isFeatured: post?.isFeatured || false,
           allowComments: post?.allowComments !== false,
         }}
@@ -796,8 +825,20 @@ export default function PostFormClient({
               }
               style={{ marginBottom: 16 }}
             >
-              <Form.Item name="author" label="Tác giả">
-                <Input placeholder="Tên tác giả" prefix={<UserOutlined />} />
+              <Form.Item name="authorId" label="Tác giả">
+                <Select
+                  placeholder="-- Chọn tác giả --"
+                  allowClear
+                  showSearch
+                  loading={authorsLoading}
+                  filterOption={(input, option) =>
+                    (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
+                  }
+                  options={authors.map((author) => ({
+                    value: author.id,
+                    label: author.name,
+                  }))}
+                />
               </Form.Item>
 
               <Form.Item label={<Space><TagsOutlined /><span>Tags</span></Space>}>
@@ -888,6 +929,71 @@ export default function PostFormClient({
                 </Text>
               </Form.Item>
             </Card>
+
+            {/* Trending & Social Stats (Read-only for existing posts) */}
+            {isEdit && post && (
+              <Card
+                title={
+                  <Space>
+                    <FireOutlined />
+                    <span>Trending & Thống kê</span>
+                  </Space>
+                }
+                style={{ marginTop: 16 }}
+              >
+                <Row gutter={[8, 8]}>
+                  <Col span={12}>
+                    <div style={{ textAlign: "center", padding: 8, background: "#f5f5f5", borderRadius: 8 }}>
+                      <EyeOutlined style={{ fontSize: 20, color: "#1890ff" }} />
+                      <div style={{ fontWeight: 600, fontSize: 18 }}>{post.viewCount?.toLocaleString() || 0}</div>
+                      <Text type="secondary" style={{ fontSize: 12 }}>Lượt xem</Text>
+                    </div>
+                  </Col>
+                  <Col span={12}>
+                    <div style={{ textAlign: "center", padding: 8, background: "#f5f5f5", borderRadius: 8 }}>
+                      <ShareAltOutlined style={{ fontSize: 20, color: "#52c41a" }} />
+                      <div style={{ fontWeight: 600, fontSize: 18 }}>{post.shareCount?.toLocaleString() || 0}</div>
+                      <Text type="secondary" style={{ fontSize: 12 }}>Lượt chia sẻ</Text>
+                    </div>
+                  </Col>
+                  <Col span={12}>
+                    <div style={{ textAlign: "center", padding: 8, background: "#f5f5f5", borderRadius: 8 }}>
+                      <HeartOutlined style={{ fontSize: 20, color: "#eb2f96" }} />
+                      <div style={{ fontWeight: 600, fontSize: 18 }}>{post.likeCount?.toLocaleString() || 0}</div>
+                      <Text type="secondary" style={{ fontSize: 12 }}>Lượt thích</Text>
+                    </div>
+                  </Col>
+                  <Col span={12}>
+                    <div style={{ textAlign: "center", padding: 8, background: "#f5f5f5", borderRadius: 8 }}>
+                      <CommentOutlined style={{ fontSize: 20, color: "#faad14" }} />
+                      <div style={{ fontWeight: 600, fontSize: 18 }}>{post.commentCount?.toLocaleString() || 0}</div>
+                      <Text type="secondary" style={{ fontSize: 12 }}>Bình luận</Text>
+                    </div>
+                  </Col>
+                </Row>
+
+                <Divider style={{ margin: "12px 0" }} />
+
+                {/* Trending Status */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <Space>
+                    <FireOutlined style={{ color: post.isTrending ? "#ff4d4f" : "#d9d9d9" }} />
+                    <Text>Trending</Text>
+                  </Space>
+                  {post.isTrending ? (
+                    <Tag color="volcano" icon={<FireOutlined />}>
+                      Top {post.trendingRank}
+                    </Tag>
+                  ) : (
+                    <Tag>Không trong Top 10</Tag>
+                  )}
+                </div>
+
+                <Text type="secondary" style={{ fontSize: 11, display: "block", marginTop: 8 }}>
+                  * Trending được tự động cập nhật dựa trên lượt xem. Bài viết vào Top 10 sẽ tự động được gán banner.
+                </Text>
+              </Card>
+            )}
 
             {/* AI SEO Assistant */}
             <div style={{ marginTop: 16 }}>

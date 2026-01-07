@@ -194,7 +194,8 @@ export interface Post {
   publishedAt: string | null;
   viewCount: number;
   // Author & Tags
-  author: string | null;
+  authorId: string | null;
+  author: string | null; // Populated author name (backward compat)
   tags: string[] | null;
   // SEO - Basic Meta
   metaTitle: string | null;
@@ -215,6 +216,13 @@ export interface Post {
   readingTime: number | null;
   template: string | null;
   customFields: Record<string, unknown> | null;
+  // Trending & Social
+  isTrending: boolean;
+  trendingRank: number | null;
+  trendingAt: string | null;
+  shareCount: number;
+  likeCount: number;
+  commentCount: number;
   // Content Structure - Auto-generated
   contentStructure?: ContentStructure | null;
   // Content Blocks - Block-based JSON content (Notion-style)
@@ -1968,5 +1976,121 @@ export const authorApi = {
     fetchApi<{ message: string }>('/authors/sort-order', {
       method: 'PUT',
       body: JSON.stringify({ items }),
+    }),
+};
+
+// =====================
+// Banner Types & API
+// =====================
+
+export type BannerPosition = 'hero' | 'sidebar' | 'category' | 'footer';
+export type BannerStatus = 'active' | 'inactive' | 'scheduled';
+
+export interface Banner {
+  id: string;
+  postId: string;
+  post?: Post;
+  categoryId: string | null;
+  category?: Category;
+  title: string;
+  subtitle: string | null;
+  imageUrl: string;
+  linkUrl: string;
+  position: BannerPosition;
+  rank: number;
+  sortOrder: number;
+  status: BannerStatus;
+  isAutoAssigned: boolean;
+  viewCount: number;
+  clickCount: number;
+  startDate: string | null;
+  endDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BannersResponse {
+  data: Banner[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface BannerStatistics {
+  total: number;
+  byPosition: Record<BannerPosition, number>;
+  autoAssigned: number;
+  manual: number;
+}
+
+export interface TrendingSyncResult {
+  created: number;
+  updated: number;
+  removed: number;
+  topPosts: Array<{ id: string; title: string; viewCount: number; rank: number; categoryId: string; categoryName: string }>;
+  byCategory: Array<{ categoryId: string; categoryName: string; count: number }>;
+}
+
+export const bannerApi = {
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
+    position?: BannerPosition;
+    status?: BannerStatus;
+    isAutoAssigned?: boolean;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', params.page.toString());
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.position) searchParams.set('position', params.position);
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.isAutoAssigned !== undefined) searchParams.set('isAutoAssigned', params.isAutoAssigned.toString());
+    const query = searchParams.toString();
+    return fetchApi<BannersResponse>(`/banners${query ? `?${query}` : ''}`);
+  },
+
+  getById: (id: string) => fetchApi<Banner>(`/banners/${id}`),
+
+  getTrending: (limit = 10) => fetchApi<Banner[]>(`/banners/trending?limit=${limit}`),
+
+  getByPosition: (position: BannerPosition, limit = 10) =>
+    fetchApi<Banner[]>(`/banners/position/${position}?limit=${limit}`),
+
+  getStatistics: () => fetchApi<BannerStatistics>('/banners/statistics'),
+
+  create: (data: Partial<Banner>) =>
+    fetchApi<Banner>('/banners', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: Partial<Banner>) =>
+    fetchApi<Banner>(`/banners/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    fetchApi<{ message: string }>(`/banners/${id}`, {
+      method: 'DELETE',
+    }),
+
+  syncTrending: (config?: { topCount?: number; position?: BannerPosition; minViewCount?: number }) =>
+    fetchApi<TrendingSyncResult>('/banners/sync-trending', {
+      method: 'POST',
+      body: JSON.stringify(config || {}),
+    }),
+
+  trackView: (id: string) =>
+    fetchApi<{ message: string }>(`/banners/${id}/view`, {
+      method: 'POST',
+    }),
+
+  trackClick: (id: string) =>
+    fetchApi<{ message: string }>(`/banners/${id}/click`, {
+      method: 'POST',
     }),
 };
