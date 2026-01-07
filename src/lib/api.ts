@@ -424,6 +424,33 @@ export const postApi = {
       method: 'PUT',
       body: JSON.stringify({ sectionIds }),
     }),
+
+  // === Cover Image Upload ===
+  uploadCover: async (postId: string, file: File): Promise<{ success: boolean; coverImage: string; post: Post }> => {
+    const token = getAuthToken();
+    const formData = new FormData();
+    formData.append('cover', file);
+
+    const res = await fetch(`${API_URL}/posts/${postId}/cover`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(error.error || 'Upload failed');
+    }
+
+    return res.json();
+  },
+
+  removeCover: (postId: string) =>
+    fetchApi<{ success: boolean; message: string; post: Post }>(`/posts/${postId}/cover`, {
+      method: 'DELETE',
+    }),
 };
 
 // =====================
@@ -1587,6 +1614,15 @@ export interface PublicPost {
   tagsRelation?: { _id: string; name: string; slug: string; color: string }[];
   content?: string;
   author?: string;
+  authorId?: string;
+  authorInfo?: {
+    _id: string;
+    name: string;
+    slug: string;
+    avatarUrl?: string;
+    jobTitle?: string;
+    bio?: string;
+  };
   readingTime?: number;
   contentStructure?: ContentStructure | null;
 }

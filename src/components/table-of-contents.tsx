@@ -95,7 +95,7 @@ export default function TableOfContents({
   toc: tocFromApi,
   title = "Mục lục",
   sticky = true,
-  maxLevel = 3,
+  maxLevel = 2,
   containerSelector,
   emptyMessage,
 }: TableOfContentsProps) {
@@ -236,7 +236,7 @@ export function addHeadingIds(html: string): string {
 /**
  * Extract TOC from HTML content (for pre-rendered content)
  */
-export function extractTocFromHtml(html: string, maxLevel: number = 3): TocItem[] {
+export function extractTocFromHtml(html: string, maxLevel: number = 2): TocItem[] {
   const headingRegex = /<h([1-6])[^>]*id="([^"]*)"[^>]*>([^<]+)<\/h\1>/gi;
   const headings: TocItem[] = [];
   let match;

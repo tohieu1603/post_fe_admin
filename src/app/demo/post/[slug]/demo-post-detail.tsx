@@ -177,14 +177,21 @@ export default function DemoPostDetail({
 
   const showUpdatedDate = hasBeenUpdated(post.publishedAt, post.updatedAt);
 
-  // Schema.org Article JSON-LD
+  // Schema.org Article JSON-LD with E-E-A-T author info
+  const authorName = post.authorInfo?.name || post.author || "Admin";
   const articleSchema = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: post.title,
     description: post.excerpt || "",
     image: post.coverImage || undefined,
-    author: { "@type": "Person", name: post.author || "Admin" },
+    author: {
+      "@type": "Person",
+      name: authorName,
+      ...(post.authorInfo?.avatarUrl && { image: post.authorInfo.avatarUrl }),
+      ...(post.authorInfo?.jobTitle && { jobTitle: post.authorInfo.jobTitle }),
+      ...(post.authorInfo?.slug && { url: `/demo/author/${post.authorInfo.slug}` }),
+    },
     publisher: {
       "@type": "Organization",
       name: "Vật Liệu XD",
@@ -296,9 +303,9 @@ export default function DemoPostDetail({
 
               {/* Meta Info */}
               <div className="vne-detail-meta">
-                {post.author && (
+                {(post.authorInfo || post.author) && (
                   <span itemProp="author" itemScope itemType="https://schema.org/Person">
-                    <UserOutlined /> <span itemProp="name">{post.author}</span>
+                    <UserOutlined /> <span itemProp="name">{post.authorInfo?.name || post.author}</span>
                   </span>
                 )}
                 <time dateTime={formatDateISO(post.publishedAt)} itemProp="datePublished">
@@ -423,14 +430,34 @@ export default function DemoPostDetail({
               <FaqSection faqs={(post.contentStructure as any)?.sections?.find((s: any) => s.type === 'faq')?.faqs} />
 
               {/* Author Box */}
-              {post.author && (
+              {(post.authorInfo || post.author) && (
                 <div style={{ display: "flex", alignItems: "center", gap: 12, padding: 16, background: "#f9f9f9", borderRadius: 8, margin: "24px 0" }}>
-                  <div style={{ width: 48, height: 48, background: "#1890ff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 20 }}>
-                    <UserOutlined />
-                  </div>
+                  {post.authorInfo?.avatarUrl ? (
+                    <img
+                      src={post.authorInfo.avatarUrl}
+                      alt={post.authorInfo.name}
+                      style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    <div style={{ width: 56, height: 56, background: "#1890ff", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 22 }}>
+                      <UserOutlined />
+                    </div>
+                  )}
                   <div style={{ display: "flex", flexDirection: "column" }}>
                     <span style={{ fontSize: 12, color: "#888" }}>Tác giả</span>
-                    <strong style={{ fontSize: 15, color: "#333" }}>{post.author}</strong>
+                    {post.authorInfo ? (
+                      <Link
+                        href={`/demo/author/${post.authorInfo.slug}`}
+                        style={{ fontSize: 15, fontWeight: 600, color: "#333" }}
+                      >
+                        {post.authorInfo.name}
+                      </Link>
+                    ) : (
+                      <strong style={{ fontSize: 15, color: "#333" }}>{post.author}</strong>
+                    )}
+                    {post.authorInfo?.jobTitle && (
+                      <span style={{ fontSize: 13, color: "#666" }}>{post.authorInfo.jobTitle}</span>
+                    )}
                   </div>
                 </div>
               )}

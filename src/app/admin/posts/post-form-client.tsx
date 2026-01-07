@@ -20,6 +20,8 @@ import {
   InputNumber,
   Tag,
   Divider,
+  Upload,
+  Spin,
 } from "antd";
 import {
   ArrowLeftOutlined,
@@ -44,6 +46,9 @@ import {
   FireOutlined,
   EyeOutlined,
   HeartOutlined,
+  UploadOutlined,
+  DeleteOutlined,
+  PictureOutlined,
 } from "@ant-design/icons";
 import { useDebouncedCallback } from "use-debounce";
 import type { Post, Category, Author } from "@/lib/api";
@@ -78,6 +83,7 @@ export default function PostFormClient({
     (post?.contentBlocks as BlockEditorContentBlock[]) || []
   );
   const [previewImage, setPreviewImage] = useState(post?.coverImage || "");
+  const [coverUploading, setCoverUploading] = useState(false);
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(isEdit);
   const [generatingSlug, setGeneratingSlug] = useState(false);
   const [tags, setTags] = useState<string[]>(post?.tags || []);
@@ -239,6 +245,57 @@ export default function PostFormClient({
   // Handle tag remove
   const handleTagRemove = (tag: string) => {
     setTags(tags.filter((t) => t !== tag));
+  };
+
+  // Handle cover image upload
+  const handleCoverUpload = async (file: File) => {
+    if (!isEdit || !post?.id) {
+      message.warning("Vui lòng lưu bài viết trước khi upload ảnh bìa");
+      return false;
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      message.error("Chỉ hỗ trợ file ảnh: JPEG, PNG, GIF, WebP");
+      return false;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      message.error("Kích thước file tối đa 10MB");
+      return false;
+    }
+
+    setCoverUploading(true);
+    try {
+      const result = await postApi.uploadCover(post.id, file);
+      setPreviewImage(result.coverImage);
+      form.setFieldValue("coverImage", result.coverImage);
+      message.success("Upload ảnh bìa thành công");
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Upload thất bại");
+    } finally {
+      setCoverUploading(false);
+    }
+    return false; // Prevent default upload behavior
+  };
+
+  // Handle cover image remove
+  const handleCoverRemove = async () => {
+    if (!isEdit || !post?.id) return;
+
+    setCoverUploading(true);
+    try {
+      await postApi.removeCover(post.id);
+      setPreviewImage("");
+      form.setFieldValue("coverImage", "");
+      message.success("Đã xóa ảnh bìa");
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Xóa thất bại");
+    } finally {
+      setCoverUploading(false);
+    }
   };
 
   // Convert blocks to markdown for backward compatibility
@@ -798,21 +855,100 @@ export default function PostFormClient({
             </Card>
 
             {/* Cover Image */}
-            <Card title="Ảnh bìa" style={{ marginBottom: 16 }}>
-              <Form.Item name="coverImage">
-                <Input
-                  placeholder="URL ảnh bìa"
-                  onChange={(e) => setPreviewImage(e.target.value)}
-                />
-              </Form.Item>
-              {previewImage && (
-                <Image
-                  src={previewImage}
-                  alt="Cover preview"
-                  style={{ width: "100%", maxHeight: 150, objectFit: "cover" }}
-                  fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3jOD1boQVTPQrgSkktTgbSf4A4LbmgqISBgTEFyFYuLykAsTuAbJEioKOA7DkgdjqEvQHEToKwj4DVhAQ5A9k3gGyB5IxEoBmML4BsnSQk8XQkNtReEOBxcfXxUQg1Mjc0dyHgXNJBSWpFCYh2zi+oLMpMzyhRcASGUqqCZ16yno6CkYGRAQMDKMwhqj/fAIcloxgHQqxAjIHBEugw5sUIsSQpBobtQPdLciLEVJYzMPBHMDBsayhILEqEO4DxG0txmrERhM29nYGBddr//5/DGRjYNRkY/l7////39v///y4Dmn+LgesAs7ioAC0kJGMAAABbUlEQVR4nO3VMREAIBDFwNPCAMwB/gn8vAtOEHTv"
-                />
-              )}
+            <Card
+              title={
+                <Space>
+                  <PictureOutlined />
+                  <span>Ảnh bìa</span>
+                </Space>
+              }
+              style={{ marginBottom: 16 }}
+            >
+              <Spin spinning={coverUploading}>
+                {/* Upload area or preview */}
+                {previewImage ? (
+                  <div style={{ position: "relative" }}>
+                    <Image
+                      src={previewImage}
+                      alt="Cover preview"
+                      style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 8 }}
+                      fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3jOD1boQVTPQrgSkktTgbSf4A4LbmgqISBgTEFyFYuLykAsTuAbJEioKOA7DkgdjqEvQHEToKwj4DVhAQ5A9k3gGyB5IxEoBmML4BsnSQk8XQkNtReEOBxcfXxUQg1Mjc0dyHgXNJBSWpFCYh2zi+oLMpMzyhRcASGUqqCZ16yno6CkYGRAQMDKMwhqj/fAIcloxgHQqxAjIHBEugw5sUIsSQpBobtQPdLciLEVJYzMPBHMDBsayhILEqEO4DxG0txmrERhM29nYGBddr//5/DGRjYNRkY/l7////39v///y4Dmn+LgesAs7ioAC0kJGMAAABbUlEQVR4nO3VMREAIBDFwNPCAMwB/gn8vAtOEHTv"
+                    />
+                    {isEdit && (
+                      <Space style={{ marginTop: 12 }}>
+                        <Upload
+                          accept="image/jpeg,image/png,image/gif,image/webp"
+                          showUploadList={false}
+                          beforeUpload={handleCoverUpload}
+                        >
+                          <Button icon={<UploadOutlined />} size="small">
+                            Đổi ảnh
+                          </Button>
+                        </Upload>
+                        <Button
+                          icon={<DeleteOutlined />}
+                          size="small"
+                          danger
+                          onClick={handleCoverRemove}
+                        >
+                          Xóa
+                        </Button>
+                      </Space>
+                    )}
+                  </div>
+                ) : isEdit ? (
+                  <Upload.Dragger
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    showUploadList={false}
+                    beforeUpload={handleCoverUpload}
+                    style={{ padding: "20px 0" }}
+                  >
+                    <p className="ant-upload-drag-icon">
+                      <PictureOutlined style={{ fontSize: 48, color: "#1890ff" }} />
+                    </p>
+                    <p className="ant-upload-text">Kéo thả hoặc click để upload ảnh bìa</p>
+                    <p className="ant-upload-hint">
+                      Hỗ trợ: JPEG, PNG, GIF, WebP (tối đa 10MB)
+                    </p>
+                  </Upload.Dragger>
+                ) : (
+                  <div style={{ textAlign: "center", padding: "20px 0", color: "#999" }}>
+                    <PictureOutlined style={{ fontSize: 48, marginBottom: 8 }} />
+                    <p>Lưu bài viết trước để upload ảnh bìa</p>
+                  </div>
+                )}
+
+                {/* Hidden field for coverImage URL */}
+                <Form.Item name="coverImage" hidden>
+                  <Input />
+                </Form.Item>
+
+                {/* Optional: Manual URL input (collapsed) */}
+                {isEdit && (
+                  <Collapse
+                    ghost
+                    size="small"
+                    style={{ marginTop: 12 }}
+                    items={[
+                      {
+                        key: "url",
+                        label: <Text type="secondary" style={{ fontSize: 12 }}>Hoặc nhập URL thủ công</Text>,
+                        children: (
+                          <Input
+                            placeholder="https://example.com/image.jpg"
+                            value={previewImage}
+                            onChange={(e) => {
+                              setPreviewImage(e.target.value);
+                              form.setFieldValue("coverImage", e.target.value);
+                            }}
+                            size="small"
+                          />
+                        ),
+                      },
+                    ]}
+                  />
+                )}
+              </Spin>
             </Card>
 
             {/* Author & Tags */}
