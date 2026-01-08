@@ -714,37 +714,47 @@ export default function PostFormClient({
               </Form.Item>
             </Card>
 
-            {/* TOC Preview - Auto-generated from heading blocks */}
-            {contentBlocks.filter((b) => b.type === "heading").length > 0 && (
-              <Card
-                title={
-                  <Space>
-                    <UnorderedListOutlined />
-                    <span>Mục lục (tự động từ Heading)</span>
-                  </Space>
+            {/* TOC Preview - Auto-generated from headings (H2 only saved to DB) */}
+            {(() => {
+              // Extract all headings for preview (H2-H6)
+              const tocItems: { id: string; text: string; level: number }[] = [];
+              contentBlocks.forEach((b) => {
+                if (b.type === "heading") {
+                  const level = (b as any).level || 2;
+                  tocItems.push({ id: b.id, text: (b as any).text || "", level });
+                } else if (b.type === "paragraph" && (b as any).text) {
+                  // Extract headings from HTML inside paragraph
+                  const text = (b as any).text as string;
+                  const hRegex = /<h([1-6])[^>]*>([^<]+)<\/h\1>/gi;
+                  let match;
+                  while ((match = hRegex.exec(text)) !== null) {
+                    tocItems.push({ id: `${b.id}-h${match[1]}-${tocItems.length}`, text: match[2].trim(), level: parseInt(match[1]) });
+                  }
                 }
-                size="small"
-                style={{ marginBottom: 16 }}
-              >
-                <ul style={{ margin: 0, paddingLeft: 20 }}>
-                  {contentBlocks
-                    .filter((b) => b.type === "heading")
-                    .map((block) => (
-                      <li
-                        key={block.id}
-                        style={{
-                          marginLeft: ((block as any).level - 2) * 16,
-                          fontWeight: (block as any).level === 2 ? 600 : 400,
-                          fontSize: (block as any).level === 2 ? 14 : 13,
-                          color: (block as any).level === 2 ? "#262626" : "#595959",
-                        }}
-                      >
-                        {(block as any).text || "(Chưa có tiêu đề)"}
+              });
+              // Filter H1 and H2 for display
+              const h1h2Items = tocItems.filter((item) => item.level <= 2);
+              return h1h2Items.length > 0 ? (
+                <Card
+                  title={
+                    <Space>
+                      <UnorderedListOutlined />
+                      <span>Mục lục (H1, H2)</span>
+                    </Space>
+                  }
+                  size="small"
+                  style={{ marginBottom: 16 }}
+                >
+                  <ul style={{ margin: 0, paddingLeft: 20 }}>
+                    {h1h2Items.map((item) => (
+                      <li key={item.id} style={{ fontWeight: item.level === 1 ? 700 : 600, fontSize: item.level === 1 ? 15 : 14, color: "#262626" }}>
+                        {item.text || "(Chưa có tiêu đề)"}
                       </li>
                     ))}
-                </ul>
-              </Card>
-            )}
+                  </ul>
+                </Card>
+              ) : null;
+            })()}
 
             {/* FAQ Section - Optional */}
             <Card

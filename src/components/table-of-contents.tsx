@@ -25,28 +25,48 @@ interface TableOfContentsProps {
 }
 
 /**
- * Extract headings from markdown content
- * Supports # H1, ## H2, ### H3, etc.
+ * Extract headings from content (supports both markdown and HTML)
+ * Markdown: # H1, ## H2, ### H3, etc.
+ * HTML: <h1>, <h2>, <h3>, etc.
  */
-function extractHeadings(markdown: string, maxLevel: number = 6): TocItem[] {
-  const headingRegex = /^(#{1,6})\s+(.+)$/gm;
+function extractHeadings(content: string, maxLevel: number = 2): TocItem[] {
   const headings: TocItem[] = [];
-  let match;
 
-  while ((match = headingRegex.exec(markdown)) !== null) {
-    const level = match[1].length;
+  // Try HTML headings first (more common in copy/paste scenarios)
+  const htmlRegex = /<h([1-6])[^>]*>([^<]+)<\/h\1>/gi;
+  let match;
+  while ((match = htmlRegex.exec(content)) !== null) {
+    const level = parseInt(match[1]);
     if (level > maxLevel) continue;
 
     const text = match[2].trim();
-    // Create anchor from text (slugify)
     const id = text
       .toLowerCase()
-      .replace(/[^\w\s\u00C0-\u024F\u1E00-\u1EFF]/g, "") // Keep letters, numbers, spaces, Vietnamese chars
+      .replace(/[^\w\s\u00C0-\u024F\u1E00-\u1EFF]/g, "")
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "");
 
     headings.push({ id, text, level });
+  }
+
+  // If no HTML headings found, try markdown
+  if (headings.length === 0) {
+    const mdRegex = /^(#{1,6})\s+(.+)$/gm;
+    while ((match = mdRegex.exec(content)) !== null) {
+      const level = match[1].length;
+      if (level > maxLevel) continue;
+
+      const text = match[2].trim();
+      const id = text
+        .toLowerCase()
+        .replace(/[^\w\s\u00C0-\u024F\u1E00-\u1EFF]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+
+      headings.push({ id, text, level });
+    }
   }
 
   return headings;
