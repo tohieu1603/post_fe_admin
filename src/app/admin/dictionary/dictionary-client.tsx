@@ -15,6 +15,7 @@ import {
   Typography,
   Tooltip,
   Badge,
+  Select,
 } from "antd";
 import {
   PlusOutlined,
@@ -73,7 +74,7 @@ export default function DictionaryClient({ initialData, initialError }: Dictiona
       form.setFieldsValue({
         ...term,
         examples: term.examples?.join("\n") || "",
-        relatedTerms: term.relatedTerms?.join(", ") || "",
+        relatedTerms: term.relatedTerms || [],
       });
     } else {
       form.resetFields();
@@ -90,7 +91,7 @@ export default function DictionaryClient({ initialData, initialError }: Dictiona
       const payload = {
         ...values,
         examples: values.examples ? values.examples.split("\n").map((s: string) => s.trim()).filter(Boolean) : [],
-        relatedTerms: values.relatedTerms ? values.relatedTerms.split(",").map((s: string) => s.trim()).filter(Boolean) : [],
+        relatedTerms: values.relatedTerms || [],
       };
 
       if (editingTerm) {
@@ -345,8 +346,13 @@ export default function DictionaryClient({ initialData, initialError }: Dictiona
             <TextArea rows={3} placeholder="ChatGPT là một ứng dụng AI chatbot phổ biến" />
           </Form.Item>
 
-          <Form.Item name="relatedTerms" label="Thuật ngữ liên quan (cách nhau bởi dấu phẩy)">
-            <Input placeholder="Machine Learning, Deep Learning, LLM" />
+          <Form.Item name="relatedTerms" label="Thuật ngữ liên quan">
+            <Select
+              mode="tags"
+              style={{ width: "100%" }}
+              placeholder="Nhập và nhấn Enter để thêm"
+              tokenSeparators={[","]}
+            />
           </Form.Item>
         </Form>
       </Modal>
