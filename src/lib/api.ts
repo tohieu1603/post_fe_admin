@@ -2130,3 +2130,103 @@ export const bannerApi = {
       method: 'POST',
     }),
 };
+
+// =====================
+// Dictionary Types & API
+// =====================
+
+export interface DictionaryTerm {
+  id: string;
+  term: string;
+  slug: string;
+  definition: string;
+  description?: string;
+  synonym?: string;
+  relatedTerms?: string[];
+  examples?: string[];
+  isActive: boolean;
+  isFeatured: boolean;
+  viewCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DictionaryResponse {
+  data: DictionaryTerm[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export const dictionaryApi = {
+  getAll: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    isActive?: boolean;
+    isFeatured?: boolean;
+    categoryId?: string;
+    tag?: string;
+    letter?: string;
+    sortBy?: string;
+    sortOrder?: string;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', params.page.toString());
+    if (params?.limit) searchParams.set('limit', params.limit.toString());
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.isActive !== undefined) searchParams.set('isActive', params.isActive.toString());
+    if (params?.isFeatured !== undefined) searchParams.set('isFeatured', params.isFeatured.toString());
+    if (params?.categoryId) searchParams.set('categoryId', params.categoryId);
+    if (params?.tag) searchParams.set('tag', params.tag);
+    if (params?.letter) searchParams.set('letter', params.letter);
+    if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
+    if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder);
+    const query = searchParams.toString();
+    return fetchApi<DictionaryResponse>(`/dictionary${query ? `?${query}` : ''}`);
+  },
+
+  getById: (id: string) => fetchApi<DictionaryTerm>(`/dictionary/${id}`),
+
+  getBySlug: (slug: string) => fetchApi<DictionaryTerm>(`/dictionary/slug/${slug}`),
+
+  create: (data: Partial<DictionaryTerm>) =>
+    fetchApi<DictionaryTerm>('/dictionary', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: Partial<DictionaryTerm>) =>
+    fetchApi<DictionaryTerm>(`/dictionary/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    fetchApi<{ message: string }>(`/dictionary/${id}`, {
+      method: 'DELETE',
+    }),
+
+  toggleActive: (id: string) =>
+    fetchApi<DictionaryTerm>(`/dictionary/${id}/toggle-active`, {
+      method: 'PATCH',
+    }),
+
+  toggleFeatured: (id: string) =>
+    fetchApi<DictionaryTerm>(`/dictionary/${id}/toggle-featured`, {
+      method: 'PATCH',
+    }),
+
+  generateSlug: (term: string) =>
+    fetchApi<{ slug: string }>('/dictionary/generate-slug', {
+      method: 'POST',
+      body: JSON.stringify({ term }),
+    }),
+
+  getTags: () => fetchApi<string[]>('/dictionary/tags'),
+
+  getAlphabet: () => fetchApi<{ letter: string; count: number }[]>('/dictionary/alphabet'),
+};
