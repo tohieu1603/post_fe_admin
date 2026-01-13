@@ -1888,6 +1888,15 @@ export interface PublicationItem {
   description?: string;
 }
 
+export interface ArticleItem {
+  id: string;
+  title: string;
+  url: string;
+  imageUrl?: string;
+  description?: string;
+  publishedDate?: string;
+}
+
 export interface Author {
   id: string;
   name: string;
@@ -1908,6 +1917,7 @@ export interface Author {
   achievements: AchievementItem[];
   skills: SkillItem[];
   publications: PublicationItem[];
+  articles: ArticleItem[];
   // Legacy
   credentials: string | null;
   yearsExperience: number | null;

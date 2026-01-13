@@ -31,6 +31,7 @@ import {
   YoutubeOutlined,
   FacebookOutlined,
   LinkOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import {
   Author,
@@ -40,6 +41,7 @@ import {
   AchievementItem,
   SkillItem,
   PublicationItem,
+  ArticleItem,
   authorApi,
   mediaApi,
 } from "@/lib/api";
@@ -87,6 +89,7 @@ export default function AuthorFormModal({
           achievements: author.achievements || [],
           skills: author.skills || [],
           publications: author.publications || [],
+          articles: author.articles || [],
           sameAs: author.sameAs || [],
         });
       } else {
@@ -102,6 +105,7 @@ export default function AuthorFormModal({
           achievements: [],
           skills: [],
           publications: [],
+          articles: [],
           sameAs: [],
         });
       }
@@ -172,6 +176,7 @@ export default function AuthorFormModal({
         achievements: processArray(values.achievements),
         skills: processArray(values.skills),
         publications: processArray(values.publications),
+        articles: processArray(values.articles),
       };
 
       if (author) {
@@ -553,6 +558,69 @@ export default function AuthorFormModal({
               ))}
               <Button type="dashed" onClick={() => add({ id: generateId() })} block icon={<PlusOutlined />}>
                 Thêm kỹ năng
+              </Button>
+            </>
+          )}
+        </Form.List>
+      ),
+    },
+    {
+      key: "articles",
+      label: "Bài viết",
+      children: (
+        <Form.List name="articles">
+          {(fields, { add, remove }) => (
+            <>
+              {fields.map(({ key, name, ...restField }) => (
+                <Card key={key} size="small" style={{ marginBottom: 16 }}>
+                  <Row gutter={16}>
+                    <Col span={22}>
+                      <Form.Item
+                        {...restField}
+                        name={[name, "title"]}
+                        label="Tiêu đề bài viết"
+                        rules={[{ required: true, message: "Nhập tiêu đề bài viết" }]}
+                      >
+                        <Input placeholder="Tiêu đề bài viết..." />
+                      </Form.Item>
+                    </Col>
+                    <Col span={2} style={{ textAlign: "right", paddingTop: 30 }}>
+                      <MinusCircleOutlined onClick={() => remove(name)} style={{ color: "red" }} />
+                    </Col>
+                  </Row>
+                  <Form.Item
+                    {...restField}
+                    name={[name, "url"]}
+                    label="Link bài viết"
+                    rules={[
+                      { required: true, message: "Nhập link bài viết" },
+                      { type: "url", message: "Link không hợp lệ" },
+                    ]}
+                  >
+                    <Input placeholder="https://example.com/bai-viet" prefix={<LinkOutlined />} />
+                  </Form.Item>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item {...restField} name={[name, "imageUrl"]} label="Ảnh đại diện (optional)">
+                        <Input placeholder="https://example.com/image.jpg" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item {...restField} name={[name, "publishedDate"]} label="Ngày đăng">
+                        <Input placeholder="2024-01-15" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Form.Item {...restField} name={[name, "description"]} label="Mô tả ngắn">
+                    <TextArea rows={2} placeholder="Mô tả ngắn về bài viết..." />
+                  </Form.Item>
+                  <Form.Item {...restField} name={[name, "id"]} hidden>
+                    <Input />
+                  </Form.Item>
+                </Card>
+              ))}
+              <Button type="dashed" onClick={() => add({ id: generateId() })} block icon={<PlusOutlined />}>
+                Thêm bài viết
               </Button>
             </>
           )}
